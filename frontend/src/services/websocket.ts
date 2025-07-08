@@ -95,6 +95,17 @@ export function emitDeleteRoom(roomId: number, gameId: number) {
   }
 }
 
+export function onRoomPlayers(callback: (data: { roomId: number|string, count: number }) => void) {
+  if (socket) {
+    socket.on('room-players', callback);
+  }
+}
+export function onRoomFull(callback: (roomId: number|string) => void) {
+  if (socket) {
+    socket.on('room-full', callback);
+  }
+}
+
 export function onRoomCreated(callback: (room: { id: number; name: string; gameId: number }) => void) {
   if (socket) {
     socket.on("room-created", callback);
@@ -111,4 +122,14 @@ export function joinRoom(roomId: string) {
   if (socket) {
     socket.emit('join-room', roomId);
   }
+}
+
+
+// chess game movement
+
+export function sendChessMove(roomId: string, move: string) {
+  if (socket) socket.emit('chess-move', { roomId, move });
+}
+export function onChessMove(callback: (data: { roomId: string, move: string }) => void) {
+  if (socket) socket.on('chess-move', callback);
 }

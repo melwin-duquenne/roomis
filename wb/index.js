@@ -1,139 +1,144 @@
 const { Server } = require("socket.io");
-const { MongoClient } = require("mongodb");
-
-const uri = process.env.MONGO_URL || "mongodb://mongodb:27017"; // mongodb si dans docker-compose
-const client = new MongoClient(uri);
-
-const express = require('express');
+const mongoose = require("mongoose");
+const Room = require("./models/room");
+const Message = require("./models/message");
+const express = require("express");
 const app = express();
-// serveur http pour l'api historique
-const httpServer = app.listen(3002, () => {
-  console.log('🌐 Serveur HTTP pour l\'API historique sur le port 3002');
-});
 
-client.connect()
-  .then(() => {
-    console.log("✅ Connecté à MongoDB");
+const MONGO_URL = "mongodb://mongodb:27017/all";
 
-    const db = client.db("all");
-    const messagesCollection = db.collection("messages");
-// autorisation cors pour l'api
-    app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*"); // autorise toutes les origines
+mongoose.connect(MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log("✅ Connecté à MongoDB via Mongoose");
+
+  // serveur HTTP pour l'API historique
+  const httpServer = app.listen(3002, () => {
+    console.log("🌐 Serveur HTTP API sur le port 3002");
+  });
+
+  // Middleware CORS
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET,POST");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
+    if (req.method === "OPTIONS") return res.sendStatus(200);
     next();
   });
-// historique des messageALL
-    app.get('/history', async (req, res) => {
-        try {
-          const messages = await messagesCollection
-            .find({ roomId: "all" })
-            .sort({ timestamp: 1 })
-            .toArray();
-          res.json(messages);
-        } catch (err) {
-          res.status(500).json({ error: "Erreur lors de la récupération de l'historique" });
-        }
-      });
 
-      // récupération des rooms
-    app.get('/rooms', async (req, res) => {
+  // Endpoint historique
+  app.get('/history', async (req, res) => {
+    try {
+      const messages = await Message.find({ roomId: "all" }).sort({ timestamp: 1 });
+      res.json(messages);
+    } catch (err) {
+      res.status(500).json({ error: "Erreur récupération historique" });
+    }
+  });
+
+  // Endpoint rooms
+  app.get('/rooms', async (req, res) => {
+    try {
+      const rooms = await Room.find({});
+      res.json(rooms);
+    } catch (err) {
+      res.status(500).json({ error: "Erreur récupération des rooms" });
+    }
+  });
+
+  // SOCKET.IO
+  const io = new Server(3001, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
+
+  const roomPlayers = {};
+
+  io.on("connection", (socket) => {
+    console.log("🔌 Client connecté :", socket.id);
+
+    socket.on("join-room", (roomId) => {
+      roomPlayers[roomId] = roomPlayers[roomId] || [];
+      if (!roomPlayers[roomId].includes(socket.id)) {
+        roomPlayers[roomId].push(socket.id);
+      }
+      socket.join(roomId);
+      io.to(roomId).emit("room-players", { roomId, count: roomPlayers[roomId].length });
+    });
+
+    socket.on("disconnect", () => {
+      for (const roomId in roomPlayers) {
+        const idx = roomPlayers[roomId].indexOf(socket.id);
+        if (idx !== -1) {
+          roomPlayers[roomId].splice(idx, 1);
+          io.to(roomId).emit("room-players", { roomId, count: roomPlayers[roomId].length });
+        }
+      }
+      console.log("❌ Client déconnecté :", socket.id);
+    });
+
+    socket.on("create-room", async (room) => {
+      io.emit("room-created", room);
       try {
-        const rooms = await db.collection("rooms").find({}).toArray();
-        res.json(rooms);
+        await Room.create(room);
+        console.log("💾 Room sauvegardée");
       } catch (err) {
-        res.status(500).json({ error: "Erreur lors de la récupération des rooms" });
+        console.error("❌ Erreur sauvegarde room :", err);
       }
     });
-// serveur socket.io 
-    const io = new Server(3001, {
-      cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-      },
+
+    socket.on("delete-room", async ({ roomId, gameId }) => {
+      io.emit("room-deleted", { roomId, gameId });
+      try {
+        await Room.deleteOne({ id: roomId, gameId });
+        console.log("🗑️ Room supprimée");
+      } catch (err) {
+        console.error("❌ Erreur suppression room :", err);
+      }
     });
-//connecté au serveur socket.io
-    io.on("connection", (socket) => {
-      console.log("🔌 Client connecté :", socket.id);
-//ROOM
-      socket.on("create-room", (room) => {
-        io.emit("room-created", room);
+
+    socket.on("chess-move", ({ roomId, move }) => {
+      io.to(roomId).emit("chess-move", { roomId, move });
+    });
+
+    socket.on("messageAll", async (messageAll) => {
+      io.emit("messageAll", {
+        sender: socket.id,
+        content: messageAll.content,
+        pseudo: messageAll.pseudo,
+        imageUrl: messageAll.imageUrl,
       });
 
-      // Suppression d'une room
-      socket.on("delete-room", async ({ roomId, gameId }) => {
-        io.emit("room-deleted", { roomId, gameId });
-        try {
-          await db.collection("rooms").deleteOne({ id: roomId, gameId: gameId });
-          console.log("🗑️ Room supprimée de la DB");
-        } catch (err) {
-          console.error("❌ Erreur suppression room :", err);
-        }
-      });
-      
-      socket.on("join-room", (roomId) => {
-        socket.join(roomId);
-        console.log(`${socket.id} a rejoint la room ${roomId}`);
-      });
-
-      //ROOM MONGODB
-      socket.on("create-room", async (room) => {
-        io.emit("room-created", room);
-        try {
-          // Ajoute la room en BDD
-          await db.collection("rooms").insertOne({
-            ...room,
-            createdAt: new Date(),
-          });
-          console.log("💾 Room sauvegardée en DB");
-        } catch (err) {
-          console.error("❌ Erreur sauvegarde room :", err);
-        }
-      });
-//MESSAGE
-      socket.on("messageAll", (messageAll) => {
-        io.emit("messageAll", {
+      try {
+        await Message.create({
+          roomId: "all",
           sender: socket.id,
           content: messageAll.content,
           pseudo: messageAll.pseudo,
           imageUrl: messageAll.imageUrl,
+          timestamp: new Date(),
         });
+        console.log("💾 Message global sauvegardé");
+      } catch (err) {
+        console.error("❌ Erreur sauvegarde messageAll :", err);
+      }
+    });
 
-         try {
-          messagesCollection.insertOne({
-            roomId: "all", // si tu veux marquer que c’est global
-            sender: socket.id,
-            content: messageAll.content,
-            pseudo: messageAll.pseudo,
-            imageUrl: messageAll.imageUrl,
-            timestamp: new Date(),
-          });
-          console.log("💾 messageAll sauvegardé en DB");
-        } catch (err) {
-          console.error("❌ erreur sauvegarde messageAll :", err);
-        }
-      });
-
-      // Envoi de message dans une room spécifique
-      socket.on("message", ({ roomId, message, pseudo, imageUrl }) => {
-        io.to(roomId).emit("message", {
-          roomId,
-          content: message,
-          sender: socket.id,
-          pseudo,
-          imageUrl
-        });
-      });
-
-      socket.on("disconnect", () => {
-        console.log("❌ Client déconnecté :", socket.id);
+    socket.on("message", ({ roomId, message, pseudo, imageUrl }) => {
+      io.to(roomId).emit("message", {
+        roomId,
+        content: message,
+        sender: socket.id,
+        pseudo,
+        imageUrl
       });
     });
-  })
-  .catch(err => {
-    console.error("❌ Erreur connexion MongoDB :", err);
   });
+})
+.catch((err) => {
+  console.error("❌ Erreur connexion MongoDB :", err);
+});
