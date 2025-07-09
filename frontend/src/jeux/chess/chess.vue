@@ -1,30 +1,82 @@
 <script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import { joinRoom, onChessMove, sendChessMove, getSocketId, onRoomPlayers } from '../../services/websocket';
 import 'vue3-chessboard/style.css';
-import { TheChessboard, type BoardApi, type BoardConfig } from 'vue3-chessboard';
-import { joinRoom, onChessMove, sendChessMove } from '../../services/websocket';
-import { onMounted } from 'vue';
+import { TheChessboard, type BoardApi } from 'vue3-chessboard';
 
+const currentTurn = ref<'w' | 'b'>('w');
+const playerRole = ref<'player1' | 'player2' | 'spectator'>('spectator');
+const playerColor = ref<'w' | 'b' | null>(null);
 let boardAPI: BoardApi | null = null;
+
 const props = defineProps<{ roomId: number | string }>();
-const boardConfig: BoardConfig = { coordinates: true };
 
 function handleCheckmate(isMated: string) {
   if (isMated === 'w') alert('Black wins!');
   else alert('White wins!');
 }
+const isSpectator = computed(() => playerRole.value === 'spectator');
+const boardConfig = computed(() => ({
+  orientation: playerColor.value || 'w',
+  viewOnly: isSpectator.value, // désactive les déplacements
+  highlight: true,
+  coordinates: true,
+}));
 
-// Quand un coup est joué localement
 function onMove(move: any) {
-  const moveStr = move.san || move.uci || '';
-  console.log('envoi chess-move', moveStr, move);
-  sendChessMove(props.roomId.toString(), moveStr);
-}
+  // Refuser si spectateur
+  if (playerRole.value === 'spectator') {
+    alert("Vous êtes spectateur, vous ne pouvez pas jouer.");
+    return false;
+  }
 
-onMounted(() => {
+  // Refuser si mauvaise couleur
+  if (move.color !== playerColor.value) {
+    alert("Ce n'est pas votre couleur !");
+    return false;
+  }
+
+  // Refuser si ce n'est pas le tour
+  if (move.color !== currentTurn.value) {
+    alert("Ce n'est pas votre tour !");
+    return false;
+  }
+
+  // Envoi move valide
+  const moveStr = move.san || move.uci || '';
+  sendChessMove(props.roomId.toString(), moveStr);
+
+  // Changer tour localement (ou attendre confirmation serveur si tu veux)
+  currentTurn.value = currentTurn.value === 'w' ? 'b' : 'w';
+}
+const hasJoined = ref(false);
+
+onMounted(async () => {
+  if (!hasJoined.value) {
+    joinRoom(props.roomId.toString());
+    hasJoined.value = true;
+  }
+
+  const socketId = getSocketId();
+
+  onRoomPlayers(({ players }) => {
+    if (socketId === players.player1) {
+      playerRole.value = 'player1';
+      playerColor.value = 'w';
+    } else if (socketId === players.player2) {
+      playerRole.value = 'player2';
+      playerColor.value = 'b';
+    } else {
+      playerRole.value = 'spectator';
+      playerColor.value = null;
+    }
+  });
+
   onChessMove(({ roomId, move }) => {
-    console.log('reçu chess-move', roomId, move);
     if (roomId.toString() === props.roomId.toString() && boardAPI) {
       boardAPI.move(move);
+      // changer le tour car adversaire a joué
+      currentTurn.value = currentTurn.value === 'w' ? 'b' : 'w';
     }
   });
 });
@@ -40,10 +92,11 @@ onMounted(() => {
       <button @click="boardAPI?.undoLastMove()">Undo</button>
       <button @click="boardAPI?.toggleMoves()">Threats</button>
     </div>
+    <p>Est spectateur ? {{ isSpectator }}</p>
     <TheChessboard
       :board-config="boardConfig"
       @board-created="(api) => (boardAPI = api)"
-         @move="onMove"
+      @move="onMove"
       @checkmate="handleCheckmate"
     />
   </section>

@@ -5,6 +5,7 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Dto\profil\UserUpdateInput;
 use App\Entity\User;
+use App\Repository\UserRepository;
 use App\Service\UserImageUploader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -17,6 +18,7 @@ final class UserUpdateProcessor implements ProcessorInterface
         private Security $security,
         private EntityManagerInterface $em,
         private UserPasswordHasherInterface $passwordHasher,
+        private UserRepository $userRepository,
     ) {}
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): User
@@ -34,7 +36,13 @@ final class UserUpdateProcessor implements ProcessorInterface
             $user->setNom($input->nom);
         }
 
-        if ($input->pseudo !== null) {
+        if ($input->pseudo !== null && $input->pseudo !== $user->getPseudo()) {
+            $existingUser = $this->userRepository->findOneBy(['pseudo' => $input->pseudo]);
+
+            if ($existingUser && $existingUser !== $user) {
+                throw new \RuntimeException('Pseudo déjà utilisé.');
+            }
+
             $user->setPseudo($input->pseudo);
         }
 

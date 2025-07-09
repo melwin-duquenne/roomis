@@ -83,6 +83,15 @@ export function sendMessage(roomId: string, message: string, pseudo?: string, im
 
 // room management
 
+export function searchRoomsByName(name: string) {
+  socket.emit('search_rooms', { name });
+}
+
+export function onSearchResults(callback: (rooms: any[]) => void) {
+  socket.on('search_results', ({ rooms }) => {
+    callback(rooms);
+  });
+}
 export function emitCreateRoom(room: { id: number; name: string; gameId: number }) {
   if (socket) {
     socket.emit("create-room", room);
@@ -95,7 +104,11 @@ export function emitDeleteRoom(roomId: number, gameId: number) {
   }
 }
 
-export function onRoomPlayers(callback: (data: { roomId: number|string, count: number }) => void) {
+export function onRoomPlayers(callback: (data: { roomId: number|string, count: number,  players: {
+    player1: string | null,
+    player2: string | null,
+    spectators: string[]
+  } }) => void) {
   if (socket) {
     socket.on('room-players', callback);
   }
@@ -117,10 +130,12 @@ export function onRoomDeleted(callback: (data: { roomId: number; gameId: number 
     socket.on("room-deleted", callback);
   }
 }
-
+let hasJoinedRooms: Set<string> = new Set();
 export function joinRoom(roomId: string) {
+  if (hasJoinedRooms.has(roomId)) return;
   if (socket) {
     socket.emit('join-room', roomId);
+    hasJoinedRooms.add(roomId);
   }
 }
 

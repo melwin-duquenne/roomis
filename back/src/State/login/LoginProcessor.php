@@ -20,12 +20,12 @@ class LoginProcessor implements ProcessorInterface
     public function process($data, Operation $operation, array $uriVariables = [], array $context = []): LoginOutput
     {
         if (!$data instanceof LoginInput) {
-            return new LoginOutput(false, null, 'Invalid data');
+            return new LoginOutput(success: false, message: 'Invalid data');
         }
 
         $user = $this->userRepository->findOneBy(['email' => $data->email]);
         if (!$user || !$this->passwordHasher->isPasswordValid($user, $data->password)) {
-            return new LoginOutput(false, null, 'Identifiants invalides');
+            return new LoginOutput(success: false, message: 'Identifiants invalides');
         }
 
         $token = $this->jwtManager->create($user);

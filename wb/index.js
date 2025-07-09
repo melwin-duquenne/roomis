@@ -28,6 +28,8 @@ mongoose.connect(MONGO_URL, {
     next();
   });
 
+  
+
   // Endpoint historique
   app.get('/history', async (req, res) => {
     try {
@@ -60,14 +62,47 @@ mongoose.connect(MONGO_URL, {
 
   io.on("connection", (socket) => {
     console.log("🔌 Client connecté :", socket.id);
+    
+    // search rooms
+    socket.on('search_rooms', async ({ name }) => {
+      try {
+        const rooms = await Room.find({
+          name: { $regex: name, $options: 'i' }
+        }).limit(20);
+
+        socket.emit('search_results', { rooms });
+      } catch (err) {
+        console.error('Erreur recherche room :', err);
+        socket.emit('search_results', { rooms: [] });
+      }
+    });
 
     socket.on("join-room", (roomId) => {
       roomPlayers[roomId] = roomPlayers[roomId] || [];
       if (!roomPlayers[roomId].includes(socket.id)) {
         roomPlayers[roomId].push(socket.id);
       }
+      const room = roomPlayers[roomId];
+
+      // Attribution du rôle
+      console.log(`🕹️ Requête de join pour la room ${roomId} par ${socket.id}`);
+      if (!room.player1) {
+        room.player1 = socket.id;
+        console.log(`🕹️ Joueur 1 rejoint la room ${roomId}`);
+      } else if (!room.player1 && !room.player2) {
+        room.player2 = socket.id;
+        console.log(`🕹️ Joueur 2 rejoint la room ${roomId}`);
+      } else {
+        room.spectators = socket.id;
+        console.log(`👀 Spectateur rejoint la room ${roomId}`);
+      }
+
       socket.join(roomId);
-      io.to(roomId).emit("room-players", { roomId, count: roomPlayers[roomId].length });
+      io.to(roomId).emit("room-players", { roomId, count: roomPlayers[roomId].length, players: {
+        player1: room.player1,
+        player2: room.player2,
+        spectators: room.spectators,
+      }, });
     });
 
     socket.on("disconnect", () => {
