@@ -33,7 +33,7 @@ const emit = defineEmits(['open-login', 'search']);
   <header class="w-full bg-white shadow mb-10">
     <div class="flex items-center justify-between px-6 py-3">
       <div class="flex items-center">
-        <img src="#" alt="Logo" class="h-10 w-auto" />
+        <img src="/public/images/basic/123.png" alt="Logo" class="h-24 w-auto" />
       </div>
       <div class="relative w-1/3">
         <input

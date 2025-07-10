@@ -48,13 +48,21 @@
       <div v-if="message" :class="success ? 'text-green-600' : 'text-red-600'">
         {{ message }}
       </div>
-
-      <button
-        type="submit"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        Mettre à jour
-      </button>
+      <div class="flex justify-between mt-4">
+        <button
+          type="submit"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Mettre à jour
+        </button>
+        <button
+          type="button"
+          data-testid="delete-account"
+          @click="deleted"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+          Suprimer le compte
+        </button>
+      </div>
     </form>
   </div>
 </template>
@@ -86,7 +94,7 @@ const imageFile = ref<File | null>(null)
 const previewImage = ref<string | null>(form.image)
 const message = ref<string>('')
 const success = ref<boolean>(false)
-
+const token = getJwtFromCookie()
 function getJwtFromCookie(): string | null {
   const match = document.cookie.match(new RegExp('(^| )jwt=([^;]+)'))
   return match ? match[2] : null
@@ -102,7 +110,7 @@ const handleImageUpload = (event: Event) => {
 
 // Fonction d’upload qui renvoie le chemin de l’image uploadée côté serveur
 const uploadImage = async (file: File): Promise<string> => {
-  const token = getJwtFromCookie()
+  
   if (!token) throw new Error("Utilisateur non authentifié.")
 
   const uploadForm = new FormData()
@@ -125,6 +133,14 @@ const uploadImage = async (file: File): Promise<string> => {
   return data.imagePath
 }
 
+const deleted = async () => { 
+  await fetch('http://localhost:8000/api/me/deleted', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${token}`
+  }
+});
+}
 const submit = async () => {
   message.value = ''
   success.value = false

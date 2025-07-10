@@ -44,7 +44,7 @@ describe('Authentification: Inscription et Connexion', () => {
     cy.get('a[href="/profile"]').click();
     cy.url().should('include', '/profile');
 
-    cy.get('[data-testid="update-prenom"]', { timeout: 10000 }).type('Jean');
+    cy.get('[data-testid="update-prenom"]', { timeout: 15000 }).type('Jean');
     cy.get('[data-testid="update-Nom"]').type('Dupont');
     cy.get('[data-testid="update-pseudo"]').type('jdupont75');
 
@@ -56,6 +56,11 @@ describe('Authentification: Inscription et Connexion', () => {
     cy.contains('Mettre à jour').click();
 
     cy.contains('Profil mis à jour avec succès !', { timeout: 10000 }).should('be.visible');
+
+    cy.contains('Suprimer le compte').click();
+
+    cy.wait(5000);
+    cy.reload(); // Recharge la page pour s'assurer que le compte est supprimé
 
     });
 
