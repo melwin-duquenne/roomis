@@ -63,7 +63,7 @@ async function submit() {
   <form @submit.prevent="submit">
     <div class="flex flex-col">
       <label class="text-left">Pseudo</label>
-      <input class="bg-gray-100 mt-1 rounded" v-model="pseudo" required />
+      <input class="bg-gray-100 mt-1 rounded" data-testid="register-pseudo" v-model="pseudo" required />
     </div>
     <div class="flex flex-col mt-4">
       <label class="text-left">Email</label>

@@ -16,17 +16,17 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700">Prénom</label>
-          <input v-model="form.prenom" class="mt-1 w-full border rounded p-2" type="text" />
+          <input data-testid="update-prenom" v-model="form.prenom" class="mt-1 w-full border rounded p-2" type="text" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Nom</label>
-          <input v-model="form.nom" class="mt-1 w-full border rounded p-2" type="text" />
+          <input data-testid="update-Nom" v-model="form.nom" class="mt-1 w-full border rounded p-2" type="text" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Pseudo</label>
-          <input v-model="form.pseudo" class="mt-1 w-full border rounded p-2" type="text" />
+          <input data-testid="update-pseudo" v-model="form.pseudo" class="mt-1 w-full border rounded p-2" type="text" />
         </div>
 
         <div>
@@ -36,12 +36,12 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Nouveau mot de passe</label>
-          <input v-model="form.password" type="password" class="mt-1 w-full border rounded p-2" />
+          <input data-testid="update-new-password" v-model="form.password" type="password" class="mt-1 w-full border rounded p-2" />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700">Confirmer le mot de passe</label>
-          <input v-model="form.passwordConfirm" type="password" class="mt-1 w-full border rounded p-2" />
+          <input data-testid="update-confirm-password" v-model="form.passwordConfirm" type="password" class="mt-1 w-full border rounded p-2" />
         </div>
       </div>
 

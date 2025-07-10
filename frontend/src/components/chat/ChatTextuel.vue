@@ -141,6 +141,7 @@ defineExpose({ openRoomTab })
     <!-- Fixed Chat Button -->
     <button
       @click="isOpen = true"
+      data-testid="all-messages-button"
       class="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-4 rounded-full shadow-lg hover:bg-blue-700 transition"
     >
       💬
@@ -194,7 +195,7 @@ defineExpose({ openRoomTab })
           placeholder="Écrire un message..."
           class="flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Envoyer</button>
+        <button data-testid="button-envoyer" type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Envoyer</button>
       </form>
     </div>
   </div>
