@@ -18,7 +18,7 @@ function handleCheckmate(isMated: string) {
 const isSpectator = computed(() => playerRole.value === 'spectator');
 const boardConfig = computed(() => ({
   orientation: playerColor.value || 'w',
-  viewOnly: isSpectator.value, // désactive les déplacements
+  // viewOnly: isSpectator.value, // désactive les déplacements
   highlight: true,
   coordinates: true,
 }));
